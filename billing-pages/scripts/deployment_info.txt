@@ -1,0 +1,44 @@
+I've created three comprehensive deployment scripts:
+
+deploy.sh: The main deployment script that:
+Creates backups before deployment
+Installs system dependencies
+Configures Apache, MySQL, and PHP
+Sets up security measures
+Deploys the application
+Configures SSL
+Handles error cases and provides detailed logging
+
+pre_deploy_check.sh: A pre-deployment verification script that:
+Checks system requirements
+Verifies PHP extensions
+Validates file permissions
+Tests database connection
+Checks SSL certificate
+Provides warnings and errors for potential issues
+
+post_deploy_verify.sh: A post-deployment verification script that:
+Verifies web server functionality
+Checks database connectivity and tables
+Validates file permissions
+Tests application functionality
+Verifies security measures
+Checks monitoring setup
+
+To use these scripts:
+First, update the configuration variables in deploy.sh:
+Apply to tour_edit.ph...
+Run
+Run the deployment process:
+Apply to tour_edit.ph...
+Run
+
+The scripts include:
+Error handling and logging
+Color-coded output for better visibility
+Backup creation before deployment
+Security checks and configurations
+Automatic SSL setup
+Monitoring configuration
+File permission management
+Database setup and verification
