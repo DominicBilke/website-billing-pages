@@ -34,10 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         foreach ($general_settings as $key => $value) {
-            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) 
-                                 VALUES (?, ?) 
-                                 ON DUPLICATE KEY UPDATE setting_value = ?");
-            $stmt->execute([$key, $value, $value]);
+            updateSetting($key, $value, $_SESSION['user_id']);
         }
 
         // Update invoice templates
@@ -48,10 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         foreach ($templates as $key => $value) {
-            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) 
-                                 VALUES (?, ?) 
-                                 ON DUPLICATE KEY UPDATE setting_value = ?");
-            $stmt->execute([$key, $value, $value]);
+            updateSetting($key, $value, $_SESSION['user_id']);
         }
 
         $pdo->commit();
@@ -62,13 +56,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get current settings
-$stmt = $pdo->query("SELECT * FROM settings");
+// Get current settings for the logged-in user
+$stmt = $pdo->prepare("SELECT * FROM settings WHERE user_id = ?");
+$stmt->execute([$_SESSION['user_id']]);
 $settings = $stmt->fetchAll();
 
-foreach($settings as $k => $set) {
-  $settings[$set['setting_key']] = $set['setting_value'];
+$settings_array = [];
+foreach($settings as $set) {
+    $settings_array[$set['setting_key']] = $set['setting_value'];
 }
+$settings = $settings_array;
 
 ?>
 

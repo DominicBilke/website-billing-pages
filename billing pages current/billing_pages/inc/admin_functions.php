@@ -23,10 +23,19 @@ function isAdmin($user_id = null) {
     return $role === 'admin';
 }
 
-function getPaymentSettings() {
+function getPaymentSettings($user_id = null) {
     global $pdo;
     
-    $stmt = $pdo->query("SELECT * FROM settings WHERE setting_key LIKE 'payment_%'");
+    if ($user_id === null) {
+        $user_id = $_SESSION['user_id'] ?? null;
+    }
+    
+    if (!$user_id) {
+        return [];
+    }
+    
+    $stmt = $pdo->prepare("SELECT * FROM settings WHERE setting_key LIKE 'payment_%' AND user_id = ?");
+    $stmt->execute([$user_id]);
     return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 }
 

@@ -24,11 +24,19 @@ try {
 }
 
 // Helper function to get a setting value
-function getSetting($key, $default = '') {
+function getSetting($key, $default = '', $user_id = null) {
     global $pdo;
     try {
-        $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
-        $stmt->execute([$key]);
+        if ($user_id === null) {
+            $user_id = $_SESSION['user_id'] ?? null;
+        }
+        
+        if (!$user_id) {
+            return $default;
+        }
+        
+        $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ? AND user_id = ?");
+        $stmt->execute([$key, $user_id]);
         $result = $stmt->fetch();
         return $result ? $result['setting_value'] : $default;
     } catch (PDOException $e) {
@@ -38,13 +46,21 @@ function getSetting($key, $default = '') {
 }
 
 // Helper function to update a setting value
-function updateSetting($key, $value) {
+function updateSetting($key, $value, $user_id = null) {
     global $pdo;
     try {
-        $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) 
-                              VALUES (?, ?) 
+        if ($user_id === null) {
+            $user_id = $_SESSION['user_id'] ?? null;
+        }
+        
+        if (!$user_id) {
+            return false;
+        }
+        
+        $stmt = $pdo->prepare("INSERT INTO settings (setting_key, user_id, setting_value) 
+                              VALUES (?, ?, ?) 
                               ON DUPLICATE KEY UPDATE setting_value = ?");
-        return $stmt->execute([$key, $value, $value]);
+        return $stmt->execute([$key, $user_id, $value, $value]);
     } catch (PDOException $e) {
         error_log("Error updating setting: " . $e->getMessage());
         return false;

@@ -107,37 +107,41 @@ CREATE TABLE `payments` (
 
 CREATE TABLE `settings` (
   `setting_key` varchar(50) NOT NULL,
+  `user_id` int(11) NOT NULL,
   `setting_value` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`setting_key`, `user_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `settings_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 --
 -- Daten für Tabelle `settings`
 --
 
-INSERT INTO `settings` (`setting_key`, `setting_value`, `created_at`, `updated_at`) VALUES
-('company_address', 'Your adress', '2025-06-09 11:44:32', '2025-06-10 13:49:48'),
-('company_city', 'Your city', '2025-06-09 11:44:32', '2025-06-10 13:49:54'),
-('company_country', 'Your country', '2025-06-09 11:44:32', '2025-06-10 13:50:01'),
-('company_email', 'Your email', '2025-06-09 11:44:32', '2025-06-10 13:50:05'),
-('company_name', 'Your name', '2025-06-09 11:44:32', '2025-06-10 13:50:09'),
-('company_phone', 'Your phone', '2025-06-09 11:44:32', '2025-06-10 13:50:14'),
-('company_postal', 'Your postal', '2025-06-09 11:44:32', '2025-06-10 13:50:19'),
-('company_vat', 'your vat', '2025-06-09 11:44:32', '2025-06-10 13:50:32'),
-('currency', 'EUR', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('invoice_prefix', 'INV', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('invoice_template', 'Dear {client_name},\r\n\r\nPlease find attached invoice {invoice_number} for {amount}.\r\n\r\nDue date: {due_date}\r\n\r\nThank you for your business.', '2025-06-09 11:44:32', '2025-06-09 20:08:28'),
-('late_fee_rate', '0', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('payment_reminder_template', 'Dear {client_name},\r\n\r\nThis is a reminder that invoice {invoice_number} for {amount} is overdue.\r\n\r\nDue date: {due_date}\r\nDays overdue: {days_overdue}\r\n\r\nPlease process the payment as soon as possible.\r\n\r\nThank you.', '2025-06-09 11:44:32', '2025-06-09 20:08:28'),
-('payment_terms', '30', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('smtp_host', '', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('smtp_pass', '', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('smtp_port', '587', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('smtp_secure', 'tls', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('smtp_user', '', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('tax_rate', '19', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
-('welcome_email_template', 'Dear {client_name},\r\n\r\nWelcome to our billing portal! You can now access your invoices and make payments online.\r\n\r\nLogin URL: {login_url}\r\n\r\nThank you for choosing our services.', '2025-06-09 11:44:32', '2025-06-09 20:08:28');
+INSERT INTO `settings` (`setting_key`, `user_id`, `setting_value`, `created_at`, `updated_at`) VALUES
+('company_address', 2, 'Your adress', '2025-06-09 11:44:32', '2025-06-10 13:49:48'),
+('company_city', 2, 'Your city', '2025-06-09 11:44:32', '2025-06-10 13:49:54'),
+('company_country', 2, 'Your country', '2025-06-09 11:44:32', '2025-06-10 13:50:01'),
+('company_email', 2, 'Your email', '2025-06-09 11:44:32', '2025-06-10 13:50:05'),
+('company_name', 2, 'Your name', '2025-06-09 11:44:32', '2025-06-10 13:50:09'),
+('company_phone', 2, 'Your phone', '2025-06-09 11:44:32', '2025-06-10 13:50:14'),
+('company_postal', 2, 'Your postal', '2025-06-09 11:44:32', '2025-06-10 13:50:19'),
+('company_vat', 2, 'your vat', '2025-06-09 11:44:32', '2025-06-10 13:50:32'),
+('currency', 2, 'EUR', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('invoice_prefix', 2, 'INV', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('invoice_template', 2, 'Dear {client_name},\r\n\r\nPlease find attached invoice {invoice_number} for {amount}.\r\n\r\nDue date: {due_date}\r\n\r\nThank you for your business.', '2025-06-09 11:44:32', '2025-06-09 20:08:28'),
+('late_fee_rate', 2, '0', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('payment_reminder_template', 2, 'Dear {client_name},\r\n\r\nThis is a reminder that invoice {invoice_number} for {amount} is overdue.\r\n\r\nDue date: {due_date}\r\nDays overdue: {days_overdue}\r\n\r\nPlease process the payment as soon as possible.\r\n\r\nThank you.', '2025-06-09 11:44:32', '2025-06-09 20:08:28'),
+('payment_terms', 2, '30', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('smtp_host', 2, '', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('smtp_pass', 2, '', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('smtp_port', 2, '587', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('smtp_secure', 2, 'tls', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('smtp_user', 2, '', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('tax_rate', 2, '19', '2025-06-09 11:44:32', '2025-06-09 11:44:32'),
+('welcome_email_template', 2, 'Dear {client_name},\r\n\r\nWelcome to our billing portal! You can now access your invoices and make payments online.\r\n\r\nLogin URL: {login_url}\r\n\r\nThank you for choosing our services.', '2025-06-09 11:44:32', '2025-06-09 20:08:28');
 
 -- --------------------------------------------------------
 
@@ -197,7 +201,8 @@ ALTER TABLE `payments`
 -- Indizes für die Tabelle `settings`
 --
 ALTER TABLE `settings`
-  ADD PRIMARY KEY (`setting_key`);
+  ADD PRIMARY KEY (`setting_key`, `user_id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indizes für die Tabelle `users`
