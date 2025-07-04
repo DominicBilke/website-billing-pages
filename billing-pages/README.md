@@ -69,7 +69,7 @@ A professional, modern billing and invoicing portal built with Vue.js 3, PHP 8.2
 
 3. **Environment setup**
    ```bash
-   cp .env.example .env
+   cp env.example .env
    # Edit .env with your database and API settings
    ```
 
@@ -250,6 +250,8 @@ APP_NAME="Billing Pages"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://billing-pages.com
+APP_TIMEZONE=Europe/Berlin
+APP_LOCALE=de
 
 # Database
 DB_CONNECTION=mysql
@@ -263,6 +265,7 @@ DB_PASSWORD=your_secure_password
 REDIS_HOST=127.0.0.1
 REDIS_PASSWORD=null
 REDIS_PORT=6379
+REDIS_DB=0
 
 # Mail
 MAIL_MAILER=smtp
@@ -274,9 +277,10 @@ MAIL_ENCRYPTION=null
 MAIL_FROM_ADDRESS="noreply@billing-pages.com"
 MAIL_FROM_NAME="${APP_NAME}"
 
-# JWT
-JWT_SECRET=your_jwt_secret_key
+# JWT Authentication
+JWT_SECRET=your_jwt_secret_key_here
 JWT_TTL=60
+JWT_REFRESH_TTL=20160
 
 # File Storage
 FILESYSTEM_DISK=local
@@ -284,6 +288,41 @@ AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_DEFAULT_REGION=us-east-1
 AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+# Queue
+QUEUE_CONNECTION=redis
+QUEUE_FAILED_DRIVER=database-uuids
+
+# Cache
+CACHE_DRIVER=redis
+SESSION_DRIVER=redis
+SESSION_LIFETIME=120
+
+# Logging
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+# Frontend
+VITE_APP_NAME="${APP_NAME}"
+VITE_APP_URL="${APP_URL}"
+VITE_API_URL="${APP_URL}/api"
+
+# Security
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+CORS_ALLOWED_ORIGINS="${APP_URL}"
+
+# Monitoring
+SENTRY_LARAVEL_DSN=
+SENTRY_TRACES_SAMPLE_RATE=1.0
+
+# External Services
+GOOGLE_MAPS_API_KEY=
+STRIPE_PUBLIC_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
 ```
 
 ## 🔧 Configuration
@@ -470,4 +509,41 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Billing Pages** - Professional billing and invoicing portal for modern businesses.
 
-Built with ❤️ by the Billing Pages Team 
+## 📋 Legal Information
+
+### Provider Information
+
+**Bilke Web- und Softwareentwicklung**  
+Hanauer Landstrasse 291 B  
+60314 Frankfurt am Main  
+Germany
+
+**VAT registration number:** DE350967159  
+**Telephone:** +49 174 849 3008  
+**E-mail:** info@dominic-bilke.de
+
+### Professional Law
+
+**Legal occupational title:** Freiberuflicher Ingenieur  
+**Awarding State:** Deutschland, Sachsen  
+**Professional regulations:** Sächsisches Ingenieurgesetz
+
+### EU Dispute Resolution
+
+The EU Commission has set up the European-Online-Dispute-Resolution (ODR) platform for the extrajudicial online settlement of disputes between consumers and businesses. You can reach the platform at: [https://ec.europa.eu/consumers/odr](https://ec.europa.eu/consumers/odr)
+
+We participate in this dispute resolution procedure. Our email address is freelancer@dominic-bilke.de.
+
+### Privacy Policy
+
+For detailed information about data processing, please refer to our [Privacy Policy](https://www.dominic-bilke.de/en/privacy-policy).
+
+### Imprint
+
+For complete legal information, please refer to our [Imprint](https://www.dominic-bilke.de/en/imprint).
+
+---
+
+**© 2025 Bilke Web- und Softwareentwicklung | DOT.COM | Eine Webseite von Dipl.-Ing. (FH) D. Bilke**
+
+Built with ❤️ by [Bilke Web- und Softwareentwicklung](https://www.dominic-bilke.de) 
