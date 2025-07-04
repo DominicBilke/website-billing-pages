@@ -44,470 +44,389 @@ A professional, modern billing and invoicing portal built with Vue.js 3, PHP 8.2
 
 ### Prerequisites
 
-- Node.js 18+ 
-- PHP 8.2+
-- MySQL 8.0+
-- Composer
-- Git
+- **Ubuntu 24.04** (recommended) or any Linux distribution
+- **Node.js 18+** and npm
+- **PHP 8.2+** with required extensions
+- **MySQL 8.0+** or MariaDB 10.6+
+- **Nginx** web server
 
-### Installation
+### Instant Deployment
 
-1. **Clone the repository**
+1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-org/billing-pages.git
+   git clone https://github.com/your-username/billing-pages.git
    cd billing-pages
    ```
 
-2. **Install dependencies**
+2. **Run the deployment script:**
    ```bash
-   # Frontend dependencies
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+3. **Access your application:**
+   - URL: `http://your-server-ip`
+   - Default credentials: Use the login page to create your first account
+
+### Manual Installation
+
+#### 1. Install Dependencies
+
+**Ubuntu/Debian:**
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 18.x
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install PHP 8.2
+sudo apt install -y php8.2 php8.2-fpm php8.2-mysql php8.2-xml php8.2-curl php8.2-mbstring php8.2-zip php8.2-gd php8.2-bcmath php8.2-intl
+
+# Install MySQL
+sudo apt install -y mysql-server
+
+# Install Nginx
+sudo apt install -y nginx
+
+# Install Composer
+curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
+```
+
+#### 2. Setup Project
+
+```bash
+# Create project directory
+sudo mkdir -p /var/www/billing-pages
+sudo chown $USER:$USER /var/www/billing-pages
+
+# Copy project files
+cp -r . /var/www/billing-pages/
+cd /var/www/billing-pages
+
+# Install Node.js dependencies
+npm install
+
+# Build the application
+npm run build
+
+# Install PHP dependencies
+composer install --no-dev --optimize-autoloader
+```
+
+#### 3. Configure Database
+
+```bash
+# Create database and user
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS billing_pages CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'billing_user'@'localhost' IDENTIFIED BY 'your_secure_password';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON billing_pages.* TO 'billing_user'@'localhost';"
+sudo mysql -e "FLUSH PRIVILEGES;"
+
+# Import schema
+sudo mysql billing_pages < database/billing_portal.sql
+```
+
+#### 4. Configure Web Server
+
+**Nginx Configuration:**
+```bash
+sudo tee /etc/nginx/sites-available/billing-pages << 'EOF'
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+    root /var/www/billing-pages/public;
+    index index.html;
+
+    # Handle Vue Router
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+}
+EOF
+
+# Enable site
+sudo ln -sf /etc/nginx/sites-available/billing-pages /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+#### 5. Set Permissions
+
+```bash
+sudo chown -R www-data:www-data /var/www/billing-pages
+sudo chmod -R 755 /var/www/billing-pages
+```
+
+#### 6. Configure Environment
+
+```bash
+# Copy environment file
+cp env.example .env
+
+# Edit with your settings
+nano .env
+```
+
+## 🛠️ Development
+
+### Local Development Setup
+
+1. **Install Node.js dependencies:**
+   ```bash
    npm install
-   
-   # Backend dependencies
-   composer install
    ```
 
-3. **Environment setup**
+2. **Start development server:**
    ```bash
-   cp env.example .env
-   # Edit .env with your database and API settings
+   npm run dev
    ```
 
-4. **Database setup**
-   ```bash
-   # Run migrations
-   php artisan migrate
-   
-   # Seed with sample data (optional)
-   php artisan db:seed
-   ```
-
-5. **Build frontend**
+3. **Build for production:**
    ```bash
    npm run build
    ```
 
-6. **Start development servers**
-   ```bash
-   # Frontend (Vite dev server)
-   npm run dev
-   
-   # Backend (PHP development server)
-   php artisan serve
-   ```
+### Available Scripts
 
-7. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-
-## 🏗️ Architecture
-
-### Frontend (Vue.js 3)
-```
-src/
-├── components/          # Reusable Vue components
-│   ├── ui/             # Base UI components
-│   └── forms/          # Form components
-├── views/              # Page components
-├── stores/             # Pinia state management
-├── router/             # Vue Router configuration
-├── utils/              # Utility functions
-├── assets/             # Static assets
-│   ├── styles/         # SCSS stylesheets
-│   └── images/         # Images and icons
-└── main.js             # Application entry point
-```
-
-### Backend (PHP/Laravel)
-```
-app/
-├── Http/
-│   ├── Controllers/    # API controllers
-│   ├── Middleware/     # Custom middleware
-│   └── Requests/       # Form request validation
-├── Models/             # Eloquent models
-├── Services/           # Business logic services
-├── Repositories/       # Data access layer
-└── Providers/          # Service providers
-```
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run format` - Format code with Prettier
 
 ## 📁 Project Structure
 
 ```
 billing-pages/
-├── src/                    # Vue.js frontend source
-│   ├── components/         # Vue components
-│   ├── views/             # Page views
-│   ├── stores/            # Pinia stores
-│   ├── router/            # Vue Router
-│   ├── utils/             # Utilities
-│   └── assets/            # Static assets
-├── public/                # Public assets
-│   ├── dist/              # Built frontend files
-│   └── assets/            # Static files
-├── app/                   # PHP backend
-├── database/              # Database migrations & seeds
-├── config/                # Configuration files
-├── routes/                # API routes
-├── storage/               # File storage
-├── tests/                 # Test files
-├── vendor/                # Composer dependencies
-├── node_modules/          # NPM dependencies
-├── package.json           # Frontend dependencies
-├── composer.json          # Backend dependencies
-├── vite.config.js         # Vite configuration
-├── .env.example           # Environment template
-└── README.md              # This file
+├── public/                 # Static assets
+│   ├── index.html         # Main HTML file
+│   ├── assets/            # Built assets
+│   └── images/            # Images and logos
+├── src/
+│   ├── components/        # Vue components
+│   ├── views/            # Page components
+│   ├── router/           # Vue Router configuration
+│   ├── stores/           # Pinia stores
+│   ├── assets/           # Source assets
+│   │   └── styles/       # SCSS styles
+│   ├── App.vue           # Root component
+│   └── main.js           # Application entry point
+├── database/             # Database schemas
+├── config/               # Configuration files
+├── deploy.sh             # Deployment script
+├── package.json          # Node.js dependencies
+├── vite.config.js        # Vite configuration
+└── README.md             # This file
 ```
 
-## 🛠️ Development
+## 🎨 Features
 
-### Available Scripts
+### Core Functionality
+- **Dashboard** - Overview of key metrics and recent activity
+- **Company Management** - Manage client companies and their details
+- **Tour Management** - Track tours and routes with mapping
+- **Work Hours** - Time tracking and timesheet management
+- **Task Management** - Project and task organization
+- **Invoice System** - Generate and manage invoices
+- **Reports** - Analytics and reporting tools
+- **Settings** - User preferences and system configuration
 
-```bash
-# Frontend Development
-npm run dev              # Start Vite dev server
-npm run build            # Build for production
-npm run preview          # Preview production build
-npm run lint             # Run ESLint
-npm run format           # Format code with Prettier
-npm run test             # Run unit tests
-npm run test:ui          # Run tests with UI
+### Technical Features
+- **Modern UI** - Built with Vue.js 3 and modern CSS
+- **Responsive Design** - Works on all devices
+- **Dark/Light Theme** - User-selectable themes
+- **Real-time Updates** - Live data updates
+- **Security** - Authentication and authorization
+- **Performance** - Optimized for speed
+- **Accessibility** - WCAG compliant
 
-# Backend Development
-composer install         # Install PHP dependencies
-composer update          # Update PHP dependencies
-composer test            # Run PHP tests
-php artisan serve        # Start PHP development server
-php artisan migrate      # Run database migrations
-php artisan db:seed      # Seed database
-```
-
-### Code Style
-
-This project uses:
-- **ESLint** for JavaScript/TypeScript linting
-- **Prettier** for code formatting
-- **PHP CS Fixer** for PHP code formatting
-- **PSR-12** for PHP coding standards
-
-### Testing
-
-```bash
-# Frontend tests
-npm run test             # Run all tests
-npm run test:unit        # Run unit tests only
-npm run test:coverage    # Generate coverage report
-
-# Backend tests
-composer test            # Run PHP tests
-php artisan test         # Run Laravel tests
-```
-
-## 🚀 Deployment
-
-### Ubuntu 24.04 with Plesk
-
-1. **Run the deployment script**
-   ```bash
-   chmod +x deploy-ubuntu-plesk.sh
-   ./deploy-ubuntu-plesk.sh
-   ```
-
-2. **Manual deployment steps**
-   ```bash
-   # Build frontend
-   npm run build
-   
-   # Install production dependencies
-   composer install --no-dev --optimize-autoloader
-   
-   # Run migrations
-   php artisan migrate --force
-   
-   # Optimize application
-   php artisan config:cache
-   php artisan route:cache
-   php artisan view:cache
-   ```
-
-### Docker Deployment
-
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Or build individual containers
-docker build -t billing-pages-frontend ./frontend
-docker build -t billing-pages-backend ./backend
-```
+## 🔧 Configuration
 
 ### Environment Variables
+
+Create a `.env` file in the project root:
 
 ```env
 # Application
 APP_NAME="Billing Pages"
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://billing-pages.com
-APP_TIMEZONE=Europe/Berlin
-APP_LOCALE=de
+APP_URL=https://your-domain.com
 
 # Database
 DB_CONNECTION=mysql
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=billing_pages_db
-DB_USERNAME=billing_pages_user
+DB_DATABASE=billing_pages
+DB_USERNAME=billing_user
 DB_PASSWORD=your_secure_password
 
-# Redis
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=null
-REDIS_PORT=6379
-REDIS_DB=0
-
 # Mail
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.mailtrap.io
-MAIL_PORT=2525
-MAIL_USERNAME=null
-MAIL_PASSWORD=null
-MAIL_ENCRYPTION=null
-MAIL_FROM_ADDRESS="noreply@billing-pages.com"
-MAIL_FROM_NAME="${APP_NAME}"
-
-# JWT Authentication
-JWT_SECRET=your_jwt_secret_key_here
-JWT_TTL=60
-JWT_REFRESH_TTL=20160
-
-# File Storage
-FILESYSTEM_DISK=local
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=
-AWS_USE_PATH_STYLE_ENDPOINT=false
-
-# Queue
-QUEUE_CONNECTION=redis
-QUEUE_FAILED_DRIVER=database-uuids
-
-# Cache
-CACHE_DRIVER=redis
-SESSION_DRIVER=redis
-SESSION_LIFETIME=120
-
-# Logging
-LOG_CHANNEL=stack
-LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=debug
-
-# Frontend
-VITE_APP_NAME="${APP_NAME}"
-VITE_APP_URL="${APP_URL}"
-VITE_API_URL="${APP_URL}/api"
-
-# Security
-SESSION_SECURE_COOKIE=true
-SESSION_SAME_SITE=lax
-CORS_ALLOWED_ORIGINS="${APP_URL}"
-
-# Monitoring
-SENTRY_LARAVEL_DSN=
-SENTRY_TRACES_SAMPLE_RATE=1.0
-
-# External Services
-GOOGLE_MAPS_API_KEY=
-STRIPE_PUBLIC_KEY=
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
+MAIL_DRIVER=smtp
+MAIL_HOST=smtp.your-provider.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@domain.com
+MAIL_PASSWORD=your-password
+MAIL_ENCRYPTION=tls
 ```
 
-## 🔧 Configuration
+### Database Configuration
 
-### Frontend Configuration
+The application uses MySQL/MariaDB. Key tables include:
 
-The frontend uses Vite for building and development. Key configuration files:
-
-- `vite.config.js` - Vite configuration
-- `package.json` - Dependencies and scripts
-- `src/main.js` - Application entry point
-- `src/router/index.js` - Route configuration
-
-### Backend Configuration
-
-The backend uses Laravel framework. Key configuration files:
-
-- `config/app.php` - Application configuration
-- `config/database.php` - Database configuration
-- `config/auth.php` - Authentication configuration
-- `routes/api.php` - API routes
-
-## 📊 API Documentation
-
-### Authentication
-
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "password"
-}
-```
-
-### Companies
-
-```http
-GET /api/companies
-Authorization: Bearer {token}
-
-POST /api/companies
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "name": "Company Name",
-  "industry": "Technology",
-  "address": "123 Main St",
-  "phone": "+1234567890",
-  "email": "contact@company.com"
-}
-```
-
-### Tours
-
-```http
-GET /api/tours
-Authorization: Bearer {token}
-
-POST /api/tours
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "name": "Tour Name",
-  "destination": "Destination",
-  "start_date": "2024-01-01",
-  "end_date": "2024-01-07",
-  "description": "Tour description"
-}
-```
+- `users` - User accounts and authentication
+- `companies` - Client company information
+- `tours` - Tour and route data
+- `work_hours` - Time tracking records
+- `tasks` - Project and task management
+- `invoices` - Invoice and billing data
 
 ## 🔒 Security
 
-### Authentication & Authorization
-- JWT-based authentication
-- Role-based access control (RBAC)
-- Permission-based authorization
-- Session management
-- Password hashing with bcrypt
+### Security Features
+- **Authentication** - Secure login system
+- **Authorization** - Role-based access control
+- **CSRF Protection** - Cross-site request forgery protection
+- **XSS Protection** - Cross-site scripting prevention
+- **SQL Injection Protection** - Parameterized queries
+- **HTTPS Enforcement** - Secure communication
+- **Security Headers** - Additional HTTP security headers
 
-### Data Protection
-- Input validation and sanitization
-- SQL injection prevention
-- XSS protection
-- CSRF protection
-- Rate limiting
-- Data encryption at rest
+### Best Practices
+- Use strong passwords
+- Keep software updated
+- Regular security audits
+- Backup data regularly
+- Monitor system logs
+- Use HTTPS in production
 
-### Security Headers
-- Content Security Policy (CSP)
-- X-Frame-Options
-- X-Content-Type-Options
-- X-XSS-Protection
-- Referrer Policy
+## 📊 Monitoring
 
-## 📈 Performance
+### Health Checks
+- Application status: `http://your-domain.com/health`
+- Database connectivity
+- File system permissions
+- Service status monitoring
 
-### Frontend Optimization
-- Code splitting and lazy loading
-- Tree shaking for unused code
-- Image optimization
-- Gzip compression
-- Browser caching
-- CDN integration
+### Logs
+- Nginx logs: `/var/log/nginx/`
+- Application logs: `/var/log/billing-pages/`
+- System logs: `journalctl -u billing-pages`
 
-### Backend Optimization
-- Database query optimization
-- Redis caching
-- OpCache for PHP
-- Queue system for background jobs
-- Database indexing
-- API response caching
+## 🚀 Deployment
 
-## 🧪 Testing
+### Production Checklist
+- [ ] SSL certificate installed
+- [ ] Environment variables configured
+- [ ] Database optimized
+- [ ] Caching enabled
+- [ ] Monitoring setup
+- [ ] Backup strategy implemented
+- [ ] Security audit completed
 
-### Frontend Testing
-- Unit tests with Vitest
-- Component testing with Vue Test Utils
-- E2E testing with Playwright
-- Visual regression testing
+### SSL Certificate (Let's Encrypt)
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
+```
 
-### Backend Testing
-- Unit tests with PHPUnit
-- Feature tests for API endpoints
-- Database testing
-- Performance testing
+### Performance Optimization
+- Enable Nginx gzip compression
+- Configure browser caching
+- Optimize images
+- Minify CSS/JS
+- Use CDN for static assets
 
-## 📝 Contributing
+## 🐛 Troubleshooting
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### Common Issues
 
-### Development Guidelines
-- Follow the existing code style
-- Write tests for new features
-- Update documentation
-- Ensure all tests pass
-- Follow semantic versioning
+**1. Loading Screen Stuck**
+- Check browser console for errors
+- Verify all dependencies are installed
+- Clear browser cache
+- Check network connectivity
+
+**2. Database Connection Issues**
+- Verify database credentials
+- Check MySQL service status
+- Ensure database exists
+- Test connection manually
+
+**3. Permission Errors**
+- Check file ownership: `sudo chown -R www-data:www-data /var/www/billing-pages`
+- Verify file permissions: `sudo chmod -R 755 /var/www/billing-pages`
+- Check Nginx configuration: `sudo nginx -t`
+
+**4. Build Errors**
+- Clear node_modules: `rm -rf node_modules package-lock.json`
+- Reinstall dependencies: `npm install`
+- Check Node.js version: `node --version`
+
+### Debug Mode
+Enable debug mode in `.env`:
+```env
+APP_DEBUG=true
+```
+
+### Log Files
+- Application: `/var/log/billing-pages/app.log`
+- Error: `/var/log/billing-pages/error.log`
+- Access: `/var/log/billing-pages/access.log`
+
+## 📞 Support
+
+### Getting Help
+- **Documentation**: Check this README and inline code comments
+- **Issues**: Create an issue on GitHub
+- **Email**: support@billing-pages.com
+
+### Community
+- **GitHub**: https://github.com/your-username/billing-pages
+- **Discussions**: GitHub Discussions
+- **Wiki**: Project Wiki
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
-
-### Documentation
-- [API Documentation](https://docs.billing-pages.com)
-- [User Guide](https://guide.billing-pages.com)
-- [Developer Guide](https://dev.billing-pages.com)
-
-### Community
-- [GitHub Issues](https://github.com/your-org/billing-pages/issues)
-- [Discussions](https://github.com/your-org/billing-pages/discussions)
-- [Discord Server](https://discord.gg/billing-pages)
-
-### Professional Support
-- Email: support@billing-pages.com
-- Phone: +1 (555) 123-4567
-- Business Hours: Monday - Friday, 9 AM - 6 PM EST
-
 ## 🙏 Acknowledgments
 
-- [Vue.js](https://vuejs.org/) - Progressive JavaScript framework
-- [Laravel](https://laravel.com/) - PHP web application framework
-- [Vite](https://vitejs.dev/) - Next generation frontend tooling
-- [Pinia](https://pinia.vuejs.org/) - Intuitive, type safe store for Vue
-- [Chart.js](https://www.chartjs.org/) - Simple yet flexible JavaScript charting
-- [Font Awesome](https://fontawesome.com/) - Icon toolkit
+- **Vue.js** - Progressive JavaScript framework
+- **Vite** - Next generation frontend tooling
+- **Pinia** - Intuitive, type safe store for Vue
+- **Bootstrap** - CSS framework
+- **Font Awesome** - Icon library
+- **Chart.js** - Charting library
 
-## 📊 Project Status
+## 🏢 About
 
-![GitHub last commit](https://img.shields.io/github/last-commit/your-org/billing-pages)
-![GitHub issues](https://img.shields.io/github/issues/your-org/billing-pages)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/your-org/billing-pages)
-![GitHub stars](https://img.shields.io/github/stars/your-org/billing-pages)
+**Billing Pages** is developed and maintained by **Bilke Web- und Softwareentwicklung**.
+
+- **Website**: https://bilke.de
+- **Email**: info@bilke.de
+- **Phone**: +49 123 456789
+- **Address**: Musterstraße 123, 12345 Musterstadt, Germany
 
 ---
 
-**Billing Pages** - Professional billing and invoicing portal for modern businesses.
+**Version**: 2.0.0  
+**Last Updated**: January 2024  
+**Compatibility**: Vue.js 3.x, Node.js 18+, PHP 8.2+
 
 ## 📋 Legal Information
 

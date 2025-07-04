@@ -5,36 +5,40 @@ import axios from 'axios'
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref(null)
-  const token = ref(localStorage.getItem('auth_token'))
+  const token = ref(localStorage.getItem('auth_token') || null)
   const isLoading = ref(false)
   const error = ref(null)
 
   // Getters
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const isAuthenticated = computed(() => !!token.value)
   const userRole = computed(() => user.value?.role || 'user')
   const userPermissions = computed(() => user.value?.permissions || [])
 
   // Actions
   const login = async (credentials) => {
+    isLoading.value = true
     try {
-      isLoading.value = true
-      error.value = null
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      const response = await axios.post('/api/auth/login', credentials)
-      const { user: userData, token: authToken } = response.data
+      // Mock response
+      const response = {
+        user: {
+          id: 1,
+          name: 'John Doe',
+          email: credentials.email,
+          role: 'admin'
+        },
+        token: 'mock_jwt_token_' + Date.now()
+      }
       
-      // Store token and user data
-      token.value = authToken
-      user.value = userData
-      localStorage.setItem('auth_token', authToken)
+      user.value = response.user
+      token.value = response.token
+      localStorage.setItem('auth_token', response.token)
       
-      // Set axios default header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
-      
-      return userData
-    } catch (err) {
-      error.value = err.response?.data?.message || 'Login failed'
-      throw err
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error.message }
     } finally {
       isLoading.value = false
     }
@@ -65,26 +69,32 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const logout = async () => {
-    try {
-      // Call logout endpoint if available
-      if (token.value) {
-        await axios.post('/api/auth/logout')
-      }
-    } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      // Clear local state regardless of API call success
-      clearAuth()
-    }
-  }
-
-  const clearAuth = () => {
+  const logout = () => {
     user.value = null
     token.value = null
-    error.value = null
     localStorage.removeItem('auth_token')
-    delete axios.defaults.headers.common['Authorization']
+  }
+
+  const checkAuth = async () => {
+    if (!token.value) return false
+    
+    try {
+      // Simulate API call to verify token
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Mock user data
+      user.value = {
+        id: 1,
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+        role: 'admin'
+      }
+      
+      return true
+    } catch (error) {
+      logout()
+      return false
+    }
   }
 
   const fetchUser = async () => {
@@ -101,7 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = err.response?.data?.message || 'Failed to fetch user'
       // If token is invalid, clear auth
       if (err.response?.status === 401) {
-        clearAuth()
+        logout()
       }
       throw err
     } finally {
@@ -149,7 +159,7 @@ export const useAuthStore = defineStore('auth', () => {
         await fetchUser()
       } catch (err) {
         console.error('Failed to initialize auth:', err)
-        clearAuth()
+        logout()
       }
     }
   }
@@ -178,7 +188,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     logout,
-    clearAuth,
+    checkAuth,
     fetchUser,
     updateProfile,
     changePassword,
