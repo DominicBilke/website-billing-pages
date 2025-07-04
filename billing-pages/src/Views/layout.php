@@ -25,9 +25,9 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="/dashboard">
-                <i class="fas fa-calculator me-2"></i>
-                Billing Pages
+            <a class="navbar-brand d-flex align-items-center" href="/dashboard">
+                <img src="/assets/images/logo.png" alt="Billing Pages Logo" style="height:40px;width:auto;" class="me-2"/>
+                <span>Billing Pages</span>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
