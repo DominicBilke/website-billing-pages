@@ -77,14 +77,33 @@ sudo chown $USER:$USER $PROJECT_DIR
 print_status "Copying project files..."
 cp -r . $PROJECT_DIR/
 
+# Navigate to project directory
+cd $PROJECT_DIR
+
+# Check if index.html exists in root
+if [ ! -f "index.html" ]; then
+    print_error "index.html not found in root directory. Please ensure the file exists."
+    exit 1
+fi
+
 # Install Node.js dependencies
 print_status "Installing Node.js dependencies..."
-cd $PROJECT_DIR
 npm install
 
 # Build the application
 print_status "Building the application..."
 npm run build
+
+# Check if build was successful
+if [ ! -d "dist" ]; then
+    print_error "Build failed - dist directory not created"
+    exit 1
+fi
+
+if [ ! -f "dist/index.html" ]; then
+    print_error "Build failed - index.html not found in dist"
+    exit 1
+fi
 
 # Install PHP dependencies
 print_status "Installing PHP dependencies..."
@@ -107,7 +126,7 @@ sudo tee /etc/nginx/sites-available/billing-pages << EOF
 server {
     listen 80;
     server_name billing-pages.com www.billing-pages.com;
-    root $PROJECT_DIR/public;
+    root $PROJECT_DIR/dist;
     index index.html;
 
     # Security headers
@@ -276,6 +295,7 @@ echo ""
 echo "📋 Deployment Summary:"
 echo "   • Project URL: http://billing-pages.com"
 echo "   • Project Directory: $PROJECT_DIR"
+echo "   • Build Output: $PROJECT_DIR/dist"
 echo "   • Database: billing_pages"
 echo "   • Database User: billing_user"
 echo "   • Database Password: billing_password_2024"
@@ -290,5 +310,6 @@ echo "📚 Useful Commands:"
 echo "   • View logs: sudo journalctl -u nginx -f"
 echo "   • Restart services: sudo systemctl restart nginx php8.2-fpm"
 echo "   • Check status: sudo systemctl status nginx php8.2-fpm mysql"
+echo "   • Rebuild app: cd $PROJECT_DIR && npm run build"
 echo ""
 print_success "Your Billing Pages application is now ready!" 
