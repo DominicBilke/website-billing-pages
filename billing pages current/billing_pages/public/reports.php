@@ -1,248 +1,530 @@
 <?php
-require_once __DIR__ . '/../inc/header.php';
-require_once __DIR__ . '/../inc/db.php';
+require_once __DIR__ . '/../inc/config.php';
 
-// Get date range from request or default to current month
-$start_date = $_GET['start_date'] ?? date('Y-m-01');
-$end_date = $_GET['end_date'] ?? date('Y-m-t');
+// Require authentication
+requireAuth();
+
+// Get user data
+$user = getUserData();
+if (!$user) {
+    redirect('auth/login.php');
+}
+
+$db = Database::getInstance();
+
+// Get date range for reports
+$dateRange = sanitizeInput($_GET['range'] ?? '30');
+$startDate = sanitizeInput($_GET['start_date'] ?? '');
+$endDate = sanitizeInput($_GET['end_date'] ?? '');
+
+// Calculate date range
+if (empty($startDate) || empty($endDate)) {
+    $endDate = date('Y-m-d');
+    $startDate = date('Y-m-d', strtotime("-{$dateRange} days"));
+}
 
 // Get revenue statistics
-$stmt = $pdo->prepare("
-    SELECT 
+$revenueStats = $db->fetch(
+    "SELECT 
         COUNT(*) as total_invoices,
-        SUM(total) as total_revenue,
-        AVG(total) as average_invoice,
-        SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as paid_amount,
-        SUM(CASE WHEN status = 'unpaid' THEN total_amount ELSE 0 END) as unpaid_amount,
-        SUM(CASE WHEN status = 'overdue' THEN total_amount ELSE 0 END) as overdue_amount
-    FROM invoices 
-    WHERE date BETWEEN ? AND ?
-");
-$stmt->execute([$start_date, $end_date]);
-$revenue_stats = $stmt->fetch();
+        SUM(total_amount) as total_revenue,
+        SUM(paid_amount) as total_paid,
+        AVG(total_amount) as avg_invoice_amount,
+        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_invoices,
+        COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue_invoices
+     FROM invoices 
+     WHERE user_id = ? AND issue_date BETWEEN ? AND ?",
+    [$user['id'], $startDate, $endDate]
+);
 
 // Get monthly revenue data for chart
-$stmt = $pdo->prepare("
-    SELECT 
-        DATE_FORMAT(invoice_date, '%Y-%m') as month,
-        SUM(total_amount) as revenue
-    FROM invoices 
-    WHERE invoice_date BETWEEN ? AND ?
-    GROUP BY DATE_FORMAT(invoice_date, '%Y-%m')
-    ORDER BY month
-");
-$stmt->execute([$start_date, $end_date]);
-$monthly_revenue = $stmt->fetchAll();
+$monthlyRevenue = $db->fetchAll(
+    "SELECT 
+        DATE_FORMAT(issue_date, '%Y-%m') as month,
+        SUM(total_amount) as revenue,
+        SUM(paid_amount) as paid_revenue
+     FROM invoices 
+     WHERE user_id = ? AND issue_date BETWEEN ? AND ?
+     GROUP BY DATE_FORMAT(issue_date, '%Y-%m')
+     ORDER BY month DESC
+     LIMIT 12",
+    [$user['id'], $startDate, $endDate]
+);
 
-// Get top clients
-$stmt = $pdo->prepare("
-    SELECT 
-        c.name,
+// Get top clients by revenue
+$topClients = $db->fetchAll(
+    "SELECT 
+        c.company_name,
+        c.contact_name,
         COUNT(i.id) as invoice_count,
-        SUM(i.total_amount) as total_amount
-    FROM clients c
-    LEFT JOIN invoices i ON c.id = i.client_id
-    WHERE i.invoice_date BETWEEN ? AND ?
-    GROUP BY c.id
-    ORDER BY total_amount DESC
-    LIMIT 5
-");
-$stmt->execute([$start_date, $end_date]);
-$top_clients = $stmt->fetchAll();
+        SUM(i.total_amount) as total_revenue,
+        SUM(i.paid_amount) as paid_revenue
+     FROM clients c
+     LEFT JOIN invoices i ON c.id = i.client_id 
+     WHERE c.user_id = ? AND (i.issue_date BETWEEN ? AND ? OR i.issue_date IS NULL)
+     GROUP BY c.id
+     ORDER BY total_revenue DESC
+     LIMIT 10",
+    [$user['id'], $startDate, $endDate]
+);
 
-// Get payment status distribution
-$stmt = $pdo->prepare("
-    SELECT 
-        payment_status,
+// Get invoice status distribution
+$statusDistribution = $db->fetchAll(
+    "SELECT 
+        status,
         COUNT(*) as count,
-        SUM(total_amount) as amount
-    FROM invoices 
-    WHERE invoice_date BETWEEN ? AND ?
-    GROUP BY payment_status
-");
-$stmt->execute([$start_date, $end_date]);
-$payment_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        SUM(total_amount) as total_amount
+     FROM invoices 
+     WHERE user_id = ? AND issue_date BETWEEN ? AND ?
+     GROUP BY status",
+    [$user['id'], $startDate, $endDate]
+);
+
+// Get recent activity
+$recentActivity = $db->fetchAll(
+    "SELECT 
+        action_type,
+        description,
+        created_at,
+        ip_address
+     FROM activity_logs 
+     WHERE user_id = ?
+     ORDER BY created_at DESC
+     LIMIT 20",
+    [$user['id']]
+);
+
+$pageTitle = 'Reports - Billing Pages';
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= h($pageTitle) ?></title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="<?= getAssetUrl('css/style.css') ?>" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="<?= getBaseUrl() ?>">
+                <i class="fas fa-file-invoice me-2"></i>
+                Billing Pages
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.php">
+                            <i class="fas fa-tachometer-alt me-1"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="invoices.php">
+                            <i class="fas fa-file-invoice me-1"></i>
+                            Invoices
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="clients.php">
+                            <i class="fas fa-users me-1"></i>
+                            Clients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="reports.php">
+                            <i class="fas fa-chart-bar me-1"></i>
+                            Reports
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <?= h($user['first_name'] ?: $user['username']) ?>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="profile.php">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a></li>
+                            <li><a class="dropdown-item" href="settings.php">
+                                <i class="fas fa-cog me-2"></i>Settings
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="auth/logout.php">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-<div class="container">
-    <div class="page-header">
-        <h1>Reports & Analytics</h1>
-        <div class="header-actions">
-            <form class="date-filter" method="GET">
-                <div class="input-group">
-                    <input type="date" name="start_date" class="form-control" value="<?php echo $start_date; ?>">
-                    <span class="input-group-text">to</span>
-                    <input type="date" name="end_date" class="form-control" value="<?php echo $end_date; ?>">
-                    <button type="submit" class="btn btn-primary">Apply</button>
-                </div>
-            </form>
+    <!-- Main Content -->
+    <div class="container-fluid py-4">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0">Reports & Analytics</h1>
+                <p class="text-muted mb-0">Track your business performance and insights</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary" onclick="exportReport()">
+                    <i class="fas fa-download me-2"></i>
+                    Export Report
+                </button>
+                <button class="btn btn-outline-secondary" onclick="printReport()">
+                    <i class="fas fa-print me-2"></i>
+                    Print
+                </button>
+            </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-file-invoice"></i>
-                </div>
-                <h3><?php echo number_format($revenue_stats['total_invoices']); ?></h3>
-                <p>Total Invoices</p>
+        <!-- Date Range Filter -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="range" class="form-label">Quick Range</label>
+                        <select class="form-select" id="range" name="range" onchange="updateDateRange()">
+                            <option value="7" <?= $dateRange === '7' ? 'selected' : '' ?>>Last 7 days</option>
+                            <option value="30" <?= $dateRange === '30' ? 'selected' : '' ?>>Last 30 days</option>
+                            <option value="90" <?= $dateRange === '90' ? 'selected' : '' ?>>Last 90 days</option>
+                            <option value="365" <?= $dateRange === '365' ? 'selected' : '' ?>>Last year</option>
+                            <option value="custom" <?= $dateRange === 'custom' ? 'selected' : '' ?>>Custom range</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               id="start_date" 
+                               name="start_date" 
+                               value="<?= h($startDate) ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               id="end_date" 
+                               name="end_date" 
+                               value="<?= h($endDate) ?>">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="d-grid gap-2 w-100">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter me-2"></i>
+                                Apply Filter
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-euro-sign"></i>
-                </div>
-                <h3><?php echo number_format($revenue_stats['total_revenue'], 2); ?> €</h3>
-                <p>Total Revenue</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-                <h3><?php echo number_format($revenue_stats['average_invoice'], 2); ?> €</h3>
-                <p>Average Invoice</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <h3><?php echo number_format($revenue_stats['unpaid_amount'] + $revenue_stats['overdue_amount'], 2); ?> €</h3>
-                <p>Outstanding</p>
-            </div>
-        </div>
-    </div>
 
-    <div class="row mt-4">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Revenue Trend</h3>
+        <!-- Revenue Statistics -->
+        <div class="row g-4 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="stat-number"><?= formatCurrency($revenueStats['total_revenue'] ?? 0) ?></div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <canvas id="revenueChart"></canvas>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="stat-number"><?= formatCurrency($revenueStats['total_paid'] ?? 0) ?></div>
+                            <div class="stat-label">Total Paid</div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="stat-number"><?= number_format($revenueStats['total_invoices'] ?? 0) ?></div>
+                            <div class="stat-label">Total Invoices</div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-file-invoice fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="stat-number"><?= formatCurrency($revenueStats['avg_invoice_amount'] ?? 0) ?></div>
+                            <div class="stat-label">Average Invoice</div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line fa-2x text-warning"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Payment Status</h3>
-                </div>
-                <div class="card-body">
-                    <canvas id="paymentChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Top Clients</h3>
+        <!-- Charts Row -->
+        <div class="row g-4 mb-4">
+            <!-- Monthly Revenue Chart -->
+            <div class="col-xl-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Monthly Revenue Trend
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="revenueChart" height="100"></canvas>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Client</th>
-                                    <th>Invoices</th>
-                                    <th>Total Amount</th>
-                                    <th>Average Invoice</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($top_clients as $client): ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($client['name']); ?></td>
-                                    <td><?php echo number_format($client['invoice_count']); ?></td>
-                                    <td><?php echo number_format($client['total_amount'], 2); ?> €</td>
-                                    <td><?php echo number_format($client['total_amount'] / $client['invoice_count'], 2); ?> €</td>
-                                </tr>
+            </div>
+
+            <!-- Status Distribution Chart -->
+            <div class="col-xl-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Invoice Status Distribution
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="statusChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Clients and Recent Activity -->
+        <div class="row g-4">
+            <!-- Top Clients -->
+            <div class="col-xl-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-trophy me-2"></i>
+                            Top Clients by Revenue
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if (empty($topClients)): ?>
+                            <div class="text-center py-4">
+                                <i class="fas fa-users fa-2x text-muted mb-3"></i>
+                                <p class="text-muted">No client data available for the selected period.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Client</th>
+                                            <th>Invoices</th>
+                                            <th>Revenue</th>
+                                            <th>Paid</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($topClients as $client): ?>
+                                            <tr>
+                                                <td>
+                                                    <div>
+                                                        <strong><?= h($client['company_name']) ?></strong>
+                                                        <br><small class="text-muted"><?= h($client['contact_name']) ?></small>
+                                                    </div>
+                                                </td>
+                                                <td><?= number_format($client['invoice_count']) ?></td>
+                                                <td><?= formatCurrency($client['total_revenue']) ?></td>
+                                                <td><?= formatCurrency($client['paid_revenue']) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="col-xl-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Recent Activity
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if (empty($recentActivity)): ?>
+                            <div class="text-center py-4">
+                                <i class="fas fa-history fa-2x text-muted mb-3"></i>
+                                <p class="text-muted">No recent activity found.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="activity-timeline">
+                                <?php foreach ($recentActivity as $activity): ?>
+                                    <div class="activity-item">
+                                        <div class="activity-icon">
+                                            <i class="fas fa-circle text-primary"></i>
+                                        </div>
+                                        <div class="activity-content">
+                                            <div class="activity-title"><?= h($activity['description']) ?></div>
+                                            <div class="activity-meta">
+                                                <small class="text-muted">
+                                                    <?= formatDateTime($activity['created_at']) ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
                                 <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Revenue Chart
-    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-    new Chart(revenueCtx, {
-        type: 'line',
-        data: {
-            labels: <?php echo json_encode(array_column($monthly_revenue, 'month')); ?>,
-            datasets: [{
-                label: 'Revenue',
-                data: <?php echo json_encode(array_column($monthly_revenue, 'revenue')); ?>,
-                borderColor: '#1a237e',
-                backgroundColor: 'rgba(26, 35, 126, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    display: false
-                }
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Revenue Chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        const revenueChart = new Chart(revenueCtx, {
+            type: 'line',
+            data: {
+                labels: <?= json_encode(array_column(array_reverse($monthlyRevenue), 'month')) ?>,
+                datasets: [{
+                    label: 'Total Revenue',
+                    data: <?= json_encode(array_column(array_reverse($monthlyRevenue), 'revenue')) ?>,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.1
+                }, {
+                    label: 'Paid Revenue',
+                    data: <?= json_encode(array_column(array_reverse($monthlyRevenue), 'paid_revenue')) ?>,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    tension: 0.1
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value + ' €';
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
 
-    // Payment Status Chart
-    const paymentCtx = document.getElementById('paymentChart').getContext('2d');
-    new Chart(paymentCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Paid', 'Unpaid', 'Overdue'],
-            datasets: [{
-                data: [
-                    <?php echo $revenue_stats['paid_amount']; ?>,
-                    <?php echo $revenue_stats['unpaid_amount']; ?>,
-                    <?php echo $revenue_stats['overdue_amount']; ?>
-                ],
-                backgroundColor: [
-                    '#2e7d32',
-                    '#f57c00',
-                    '#c62828'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
+        // Status Distribution Chart
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        const statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: <?= json_encode(array_column($statusDistribution, 'status')) ?>,
+                datasets: [{
+                    data: <?= json_encode(array_column($statusDistribution, 'count')) ?>,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 205, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
                 }
             }
-        }
-    });
-});
-</script>
+        });
 
-<?php require_once 'inc/footer.php'; ?> 
+        // Date range functions
+        function updateDateRange() {
+            const range = document.getElementById('range').value;
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
+            
+            if (range !== 'custom') {
+                const end = new Date();
+                const start = new Date();
+                start.setDate(start.getDate() - parseInt(range));
+                
+                endDate.value = end.toISOString().split('T')[0];
+                startDate.value = start.toISOString().split('T')[0];
+            }
+        }
+
+        // Export report
+        function exportReport() {
+            const params = new URLSearchParams(window.location.search);
+            window.open('reports/export.php?' + params.toString(), '_blank');
+        }
+
+        // Print report
+        function printReport() {
+            window.print();
+        }
+
+        // Auto-update date range on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDateRange();
+        });
+    </script>
+</body>
+</html> 

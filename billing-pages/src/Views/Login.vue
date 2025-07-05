@@ -476,7 +476,6 @@ export default {
 .login-page {
   min-height: 100vh;
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  @include flex-center;
   padding: 2rem 1rem;
 }
 

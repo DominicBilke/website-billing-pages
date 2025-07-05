@@ -341,6 +341,7 @@
           <p>
             If any provision of these terms is found to be invalid, the remaining provisions remain 
             in full force and effect.
+	  </p>
           </div>
 
         <div class="section">

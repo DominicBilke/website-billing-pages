@@ -501,7 +501,6 @@ export default {
 }
 
 .companies-table {
-  @include flex-column;
   gap: 1rem;
 }
 

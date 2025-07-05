@@ -1,16 +1,35 @@
 :root {
-    --primary-color: #1a237e;
-    --primary-light: #534bae;
-    --primary-dark: #000051;
-    --secondary-color: #0d47a1;
-    --accent-color: #2962ff;
-    --text-color: #333;
-    --text-light: #666;
-    --border-color: #e0e0e0;
-    --background-light: #f5f5f5;
-    --success-color: #2e7d32;
-    --warning-color: #f57c00;
-    --danger-color: #c62828;
+    --primary-color: #0d6efd;
+    --primary-dark: #0b5ed7;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --white: #ffffff;
+    --gray-100: #f8f9fa;
+    --gray-200: #e9ecef;
+    --gray-300: #dee2e6;
+    --gray-400: #ced4da;
+    --gray-500: #adb5bd;
+    --gray-600: #6c757d;
+    --gray-700: #495057;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+    
+    --border-radius: 0.375rem;
+    --border-radius-lg: 0.5rem;
+    --border-radius-xl: 0.75rem;
+    
+    --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    --box-shadow-lg: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    --box-shadow-xl: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+    
+    --transition: all 0.15s ease-in-out;
+    --transition-fast: all 0.075s ease-in-out;
+    --transition-slow: all 0.3s ease-in-out;
 }
 
 * {
@@ -20,17 +39,18 @@
 }
 
 body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     line-height: 1.6;
-    color: var(--text-color);
-    background-color: var(--background-light);
+    color: var(--gray-700);
+    background-color: var(--white);
 }
 
 /* Navbar Styles */
 .navbar {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--box-shadow);
     padding: 1rem 0;
+    transition: var(--transition);
 }
 
 .navbar-brand {
@@ -48,7 +68,7 @@ body {
 .nav-link {
     color: rgba(255, 255, 255, 0.9) !important;
     padding: 0.5rem 1rem !important;
-    transition: all 0.3s ease;
+    transition: var(--transition);
 }
 
 .nav-link:hover {
@@ -1284,11 +1304,11 @@ a:hover {
 
 .btn-view {
     background: var(--info-light);
-    color: var(--info);
+    color: var(--info-color);
 }
 
 .btn-view:hover {
-    background: var(--info);
+    background: var(--info-color);
     color: white;
 }
 

@@ -2,7 +2,7 @@
   <nav class="navigation" :class="{ 'nav-open': isNavOpen }">
     <div class="nav-header">
       <div class="nav-brand">
-        <img src="/assets/logo-billing-pages.png" alt="Billing Pages Logo" class="nav-logo" />
+        <img src="../assets/logo-billing-pages.png" alt="Billing Pages Logo" class="nav-logo" />
         <span class="nav-title">Billing Pages</span>
       </div>
       

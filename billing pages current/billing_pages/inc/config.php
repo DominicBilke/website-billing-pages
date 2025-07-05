@@ -1,43 +1,199 @@
 <?php
+/**
+ * Billing Pages Configuration
+ * Modern configuration system with environment variables
+ */
+
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Application configuration
-define('APP_NAME', 'Billing Portal');
-define('APP_VERSION', '1.0.0');
-define('APP_URL', 'http://www.billing-pages.com');
-define('APP_ROOT', $_SERVER["DOCUMENT_ROOT"]);
-
-// Error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', APP_ROOT . '/logs/error.log');
-
-// Create logs directory if it doesn't exist
-if (!file_exists(APP_ROOT . '/logs')) {
-    mkdir(APP_ROOT . '/logs', 0777, true);
+// Load environment variables
+function loadEnv($path) {
+    if (!file_exists($path)) {
+        return false;
+    }
+    
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos($line, '#') === 0) continue;
+        
+        list($name, $value) = explode('=', $line, 2);
+        $name = trim($name);
+        $value = trim($value, '"\'');
+        
+        if (!array_key_exists($name, $_ENV)) {
+            $_ENV[$name] = $value;
+        }
+    }
+    return true;
 }
 
-// Time zone
-date_default_timezone_set('UTC');
+// Load .env file
+$envFile = __DIR__ . '/../.env';
+if (!loadEnv($envFile)) {
+    // Fallback to env.example if .env doesn't exist
+    loadEnv(__DIR__ . '/../env.example');
+}
+
+// Helper function to get environment variable
+function env($key, $default = null) {
+    return $_ENV[$key] ?? $default;
+}
+
+// Application configuration
+define('APP_NAME', env('APP_NAME', 'Billing Pages'));
+define('APP_ENV', env('APP_ENV', 'production'));
+define('APP_DEBUG', env('APP_DEBUG', 'false') === 'true');
+define('APP_URL', env('APP_URL', 'https://billing-pages.com'));
+define('APP_TIMEZONE', env('APP_TIMEZONE', 'UTC'));
+define('APP_ROOT', dirname(__DIR__));
+
+// Set timezone
+date_default_timezone_set(APP_TIMEZONE);
+
+// Error reporting based on environment
+if (APP_DEBUG) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
+
+// Logging configuration
+ini_set('log_errors', 1);
+$logDir = APP_ROOT . '/logs';
+if (!file_exists($logDir)) {
+    mkdir($logDir, 0755, true);
+}
+ini_set('error_log', $logDir . '/error.log');
 
 // Session configuration
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
+ini_set('session.cookie_secure', env('SESSION_SECURE_COOKIE', 'true') === 'true');
+ini_set('session.cookie_samesite', env('SESSION_SAME_SITE', 'strict'));
 
 // Security headers
-header('X-Frame-Options: SAMEORIGIN');
-header('X-XSS-Protection: 1; mode=block');
-header('X-Content-Type-Options: nosniff');
-header('Referrer-Policy: strict-origin-when-cross-origin');
-header('Content-Security-Policy: default-src \'self\'; script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://cdn.jsdelivr.net; style-src \'self\' \'unsafe-inline\' https://cdn.jsdelivr.net; img-src \'self\' data: https:; font-src \'self\' https://cdn.jsdelivr.net;');
+if (!headers_sent()) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-XSS-Protection: 1; mode=block');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Content-Security-Policy: default-src \'self\'; script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://cdn.jsdelivr.net https://js.stripe.com; style-src \'self\' \'unsafe-inline\' https://cdn.jsdelivr.net; img-src \'self\' data: https:; font-src \'self\' https://cdn.jsdelivr.net; connect-src \'self\' https://api.stripe.com;');
+}
+
+// Database configuration
+define('DB_HOST', env('DB_HOST', 'localhost'));
+define('DB_PORT', env('DB_PORT', '3306'));
+define('DB_DATABASE', env('DB_DATABASE', 'billing_portal'));
+define('DB_USERNAME', env('DB_USERNAME', 'root'));
+define('DB_PASSWORD', env('DB_PASSWORD', ''));
+define('DB_CHARSET', env('DB_CHARSET', 'utf8mb4'));
+
+// Mail configuration
+define('MAIL_MAILER', env('MAIL_MAILER', 'smtp'));
+define('MAIL_HOST', env('MAIL_HOST', 'smtp.gmail.com'));
+define('MAIL_PORT', env('MAIL_PORT', '587'));
+define('MAIL_USERNAME', env('MAIL_USERNAME', ''));
+define('MAIL_PASSWORD', env('MAIL_PASSWORD', ''));
+define('MAIL_ENCRYPTION', env('MAIL_ENCRYPTION', 'tls'));
+define('MAIL_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'noreply@billing-pages.com'));
+define('MAIL_FROM_NAME', env('MAIL_FROM_NAME', APP_NAME));
+
+// Payment configuration
+define('STRIPE_PUBLISHABLE_KEY', env('STRIPE_PUBLISHABLE_KEY', ''));
+define('STRIPE_SECRET_KEY', env('STRIPE_SECRET_KEY', ''));
+define('STRIPE_WEBHOOK_SECRET', env('STRIPE_WEBHOOK_SECRET', ''));
+
+// File upload configuration
+define('UPLOAD_MAX_SIZE', (int) env('UPLOAD_MAX_SIZE', '5242880')); // 5MB
+define('ALLOWED_FILE_TYPES', explode(',', env('ALLOWED_FILE_TYPES', 'jpg,jpeg,png,pdf,doc,docx')));
 
 // Include required files
 require_once APP_ROOT . '/inc/db.php';
+require_once APP_ROOT . '/inc/helpers.php';
+
+// Initialize application
+initializeApp();
+
+/**
+ * Initialize the application
+ */
+function initializeApp() {
+    // Set up error handling
+    if (APP_DEBUG) {
+        set_error_handler('errorHandler');
+        set_exception_handler('exceptionHandler');
+    }
+    
+    // Load Composer autoloader
+    $autoloader = APP_ROOT . '/vendor/autoload.php';
+    if (file_exists($autoloader)) {
+        require_once $autoloader;
+    }
+}
+
+/**
+ * Custom error handler
+ */
+function errorHandler($errno, $errstr, $errfile, $errline) {
+    if (!(error_reporting() & $errno)) {
+        return false;
+    }
+    
+    $error = [
+        'type' => $errno,
+        'message' => $errstr,
+        'file' => $errfile,
+        'line' => $errline,
+        'time' => date('Y-m-d H:i:s')
+    ];
+    
+    error_log(json_encode($error) . PHP_EOL, 3, APP_ROOT . '/logs/error.log');
+    
+    if (APP_DEBUG) {
+        echo "<h1>Error</h1>";
+        echo "<p><strong>Type:</strong> " . $error['type'] . "</p>";
+        echo "<p><strong>Message:</strong> " . $error['message'] . "</p>";
+        echo "<p><strong>File:</strong> " . $error['file'] . "</p>";
+        echo "<p><strong>Line:</strong> " . $error['line'] . "</p>";
+    }
+    
+    return true;
+}
+
+/**
+ * Custom exception handler
+ */
+function exceptionHandler($exception) {
+    $error = [
+        'type' => get_class($exception),
+        'message' => $exception->getMessage(),
+        'file' => $exception->getFile(),
+        'line' => $exception->getLine(),
+        'trace' => $exception->getTraceAsString(),
+        'time' => date('Y-m-d H:i:s')
+    ];
+    
+    error_log(json_encode($error) . PHP_EOL, 3, APP_ROOT . '/logs/error.log');
+    
+    if (APP_DEBUG) {
+        echo "<h1>Exception</h1>";
+        echo "<p><strong>Type:</strong> " . $error['type'] . "</p>";
+        echo "<p><strong>Message:</strong> " . $error['message'] . "</p>";
+        echo "<p><strong>File:</strong> " . $error['file'] . "</p>";
+        echo "<p><strong>Line:</strong> " . $error['line'] . "</p>";
+        echo "<h2>Stack Trace</h2>";
+        echo "<pre>" . $error['trace'] . "</pre>";
+    } else {
+        http_response_code(500);
+        echo "<h1>Internal Server Error</h1>";
+        echo "<p>Something went wrong. Please try again later.</p>";
+    }
+}
 
 // Helper function to get base URL
 function getBaseUrl() {

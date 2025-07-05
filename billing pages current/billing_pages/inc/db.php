@@ -1,26 +1,154 @@
 <?php
-// Database configuration
-define('DB_HOST', 'localhost');
-define('DB_USER', 'billing_root');
-define('DB_PASS', '');
-define('DB_NAME', 'billing_portal');
+/**
+ * Database Connection and Management
+ * Handles database connections and provides database utilities
+ */
 
+class Database {
+    private static $instance = null;
+    private $pdo;
+    
+    private function __construct() {
+        $this->connect();
+    }
+    
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    public function getConnection() {
+        return $this->pdo;
+    }
+    
+    private function connect() {
+        try {
+            $dsn = sprintf(
+                'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+                DB_HOST,
+                DB_PORT,
+                DB_DATABASE,
+                DB_CHARSET
+            );
+            
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . DB_CHARSET
+            ];
+            
+            $this->pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
+            
+        } catch (PDOException $e) {
+            error_log('Database connection failed: ' . $e->getMessage());
+            if (APP_DEBUG) {
+                throw new Exception('Database connection failed: ' . $e->getMessage());
+            } else {
+                throw new Exception('Database connection failed. Please check your configuration.');
+            }
+        }
+    }
+    
+    public function query($sql, $params = []) {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt;
+        } catch (PDOException $e) {
+            error_log('Database query failed: ' . $e->getMessage());
+            if (APP_DEBUG) {
+                throw new Exception('Database query failed: ' . $e->getMessage());
+            } else {
+                throw new Exception('Database operation failed.');
+            }
+        }
+    }
+    
+    public function fetch($sql, $params = []) {
+        $stmt = $this->query($sql, $params);
+        return $stmt->fetch();
+    }
+    
+    public function fetchAll($sql, $params = []) {
+        $stmt = $this->query($sql, $params);
+        return $stmt->fetchAll();
+    }
+    
+    public function insert($table, $data) {
+        $fields = array_keys($data);
+        $placeholders = ':' . implode(', :', $fields);
+        $fieldList = implode(', ', $fields);
+        
+        $sql = "INSERT INTO {$table} ({$fieldList}) VALUES ({$placeholders})";
+        
+        $this->query($sql, $data);
+        return $this->pdo->lastInsertId();
+    }
+    
+    public function update($table, $data, $where, $whereParams = []) {
+        $fields = array_keys($data);
+        $setClause = implode(' = ?, ', $fields) . ' = ?';
+        
+        $sql = "UPDATE {$table} SET {$setClause} WHERE {$where}";
+        
+        $params = array_values($data);
+        $params = array_merge($params, $whereParams);
+        
+        $stmt = $this->query($sql, $params);
+        return $stmt->rowCount();
+    }
+    
+    public function delete($table, $where, $params = []) {
+        $sql = "DELETE FROM {$table} WHERE {$where}";
+        $stmt = $this->query($sql, $params);
+        return $stmt->rowCount();
+    }
+    
+    public function count($table, $where = '1', $params = []) {
+        $sql = "SELECT COUNT(*) as count FROM {$table} WHERE {$where}";
+        $result = $this->fetch($sql, $params);
+        return (int) $result['count'];
+    }
+    
+    public function exists($table, $where, $params = []) {
+        return $this->count($table, $where, $params) > 0;
+    }
+    
+    public function beginTransaction() {
+        return $this->pdo->beginTransaction();
+    }
+    
+    public function commit() {
+        return $this->pdo->commit();
+    }
+    
+    public function rollback() {
+        return $this->pdo->rollback();
+    }
+    
+    public function inTransaction() {
+        return $this->pdo->inTransaction();
+    }
+}
+
+// Initialize database connection
 try {
-    // Create PDO instance
-    $pdo = new PDO(
-        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
-        DB_USER,
-        DB_PASS,
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false
-        ]
-    );
-} catch (PDOException $e) {
-    // Log error and display user-friendly message
-    error_log("Database Connection Error: " . $e->getMessage());
-    die("We're experiencing technical difficulties. Please try again later.");
+    $db = Database::getInstance();
+    $pdo = $db->getConnection();
+} catch (Exception $e) {
+    if (APP_DEBUG) {
+        die('Database Error: ' . $e->getMessage());
+    } else {
+        die('Database connection failed. Please check your configuration.');
+    }
+}
+
+// Legacy compatibility - keep the old $pdo variable for existing code
+if (!isset($pdo)) {
+    $pdo = $db->getConnection();
 }
 
 // Helper function to get a setting value

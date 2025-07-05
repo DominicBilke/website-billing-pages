@@ -422,7 +422,6 @@ export default {
 }
 
 .page-header {
-  @include flex-between;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color);
@@ -433,7 +432,6 @@ export default {
 }
 
 .page-header-actions {
-  @include flex-center;
   gap: 1rem;
 }
 
@@ -445,9 +443,7 @@ export default {
 }
 
 .stat-card {
-  @include card;
   padding: 1.5rem;
-  @include flex-center;
   gap: 1rem;
   transition: transform var(--transition);
   
@@ -461,7 +457,6 @@ export default {
   width: 60px;
   height: 60px;
   border-radius: var(--radius-lg);
-  @include flex-center;
   font-size: 1.5rem;
   color: white;
   
@@ -499,7 +494,6 @@ export default {
 }
 
 .stat-card-change {
-  @include flex-center;
   gap: 0.25rem;
   font-size: var(--font-size-sm);
   
@@ -523,12 +517,10 @@ export default {
 }
 
 .chart-card {
-  @include card;
   padding: 1.5rem;
 }
 
 .chart-card-header {
-  @include flex-between;
   margin-bottom: 1.5rem;
 }
 
@@ -548,22 +540,18 @@ export default {
 }
 
 .activity-card {
-  @include card;
   padding: 1.5rem;
 }
 
 .activity-card-header {
-  @include flex-between;
   margin-bottom: 1.5rem;
 }
 
 .activity-list {
-  @include flex-column;
   gap: 1rem;
 }
 
 .activity-item {
-  @include flex-center;
   gap: 1rem;
   padding: 1rem;
   border-radius: var(--radius-md);
@@ -589,7 +577,6 @@ export default {
   
   &--tour {
     background: var(--primary-color);
-    @include flex-center;
     color: white;
     font-size: 1.25rem;
   }
@@ -617,7 +604,6 @@ export default {
 }
 
 .empty-state {
-  @include flex-column;
   align-items: center;
   padding: 3rem 1rem;
   color: var(--text-muted);
@@ -643,7 +629,6 @@ export default {
 }
 
 .quick-action-card {
-  @include card;
   padding: 1.5rem;
   text-decoration: none;
   color: var(--text-color);
@@ -662,7 +647,6 @@ export default {
   background: var(--primary-50);
   color: var(--primary-color);
   border-radius: var(--radius-lg);
-  @include flex-center;
   font-size: 1.25rem;
   margin-bottom: 1rem;
 }
@@ -675,23 +659,5 @@ export default {
   color: var(--text-muted);
   font-size: var(--font-size-sm);
   margin: 0;
-}
-
-@include responsive(sm) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .activity-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .quick-actions-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style> 
